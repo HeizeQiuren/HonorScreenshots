@@ -11,6 +11,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.os.Build
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.media.ImageReader
@@ -69,6 +70,14 @@ class FloatBallService : Service() {
     // 菜单相关
     private var menuPopupWindow: PopupWindow? = null
     private var currentOpacity = 100
+
+    // 内容悬浮窗相关
+    private var contentPopupWindow: PopupWindow? = null
+    private var contentView: View? = null
+
+    // 自动置顶检测
+    private var topCheckRunnable: Runnable? = null
+    private val TOP_CHECK_INTERVAL = 15000L // 15秒
     
     // 透明度偏好设置
     private val prefs by lazy {
@@ -119,6 +128,9 @@ class FloatBallService : Service() {
     // MediaProjection 是否已初始化
     private var projectionInitialized = false
 
+    // 悬浮球View的视图层级标记
+    private var floatBallViewTag = "FLOAT_BALL_VIEW"
+
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, ">>> onCreate called")
@@ -130,9 +142,12 @@ class FloatBallService : Service() {
         currentOpacity = prefs.getInt("opacity", 100)
         
         createFloatBall()
-        
+
+        // 启动自动置顶检测
+        startTopCheck()
+
         isRunning.value = true
-        
+
         Log.d(TAG, ">>> FloatBall created, checking permission...")
         
         // 检查是否已有权限，如果有则初始化投影
@@ -214,6 +229,13 @@ class FloatBallService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isRunning.value = false
+
+        // 停止自动置顶检测
+        stopTopCheck()
+
+        // 关闭所有悬浮窗
+        dismissAllPopups()
+
         removeFloatBall()
         releaseResources()
         ProjectionPermissionManager.clear()
@@ -340,6 +362,234 @@ class FloatBallService : Service() {
 
     private fun dpToPx(dp: Int): Int {
         return (dp * resources.displayMetrics.density).toInt()
+    }
+
+    // ==================== 自动置顶检测 ====================
+
+    /**
+     * 启动自动置顶检测
+     * 每15秒检测一次悬浮窗是否在最顶层
+     */
+    private fun startTopCheck() {
+        stopTopCheck()
+        topCheckRunnable = object : Runnable {
+            override fun run() {
+                checkAndBringToFront()
+                handler.postDelayed(this, TOP_CHECK_INTERVAL)
+            }
+        }
+        handler.post(topCheckRunnable!!)
+        Log.d(TAG, "Top check started, interval: ${TOP_CHECK_INTERVAL}ms")
+    }
+
+    /**
+     * 停止自动置顶检测
+     */
+    private fun stopTopCheck() {
+        topCheckRunnable?.let {
+            handler.removeCallbacks(it)
+            topCheckRunnable = null
+            Log.d(TAG, "Top check stopped")
+        }
+    }
+
+    /**
+     * 检查并置顶悬浮窗
+     * 低内存占用、低CPU消耗的实现
+     */
+    private fun checkAndBringToFront() {
+        try {
+            val view = floatBallView ?: return
+            val wm = windowManager ?: return
+
+            // 简单检查：尝试重新添加View到窗口
+            // 如果View已被系统移除，这会重新添加它
+            try {
+                // 检查View是否还在窗口中
+                // 如果不在，removeView会抛异常，此时重新添加
+                if (view.parent == null) {
+                    Log.d(TAG, "FloatBall view not in window, re-adding...")
+                    val params = layoutParams ?: return
+                    wm.addView(view, params)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "View check failed, re-adding: ${e.message}")
+                try {
+                    val params = layoutParams ?: return
+                    wm.addView(view, params)
+                } catch (e2: Exception) {
+                    Log.e(TAG, "Failed to re-add view: ${e2.message}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "checkAndBringToFront error: ${e.message}")
+        }
+    }
+
+    // ==================== 内容悬浮窗 ====================
+
+    /**
+     * 关闭所有弹出窗口
+     */
+    private fun dismissAllPopups() {
+        try {
+            menuPopupWindow?.dismiss()
+            menuPopupWindow = null
+            contentPopupWindow?.dismiss()
+            contentPopupWindow = null
+            contentView = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error dismissing popups: ${e.message}")
+        }
+    }
+
+    /**
+     * 显示内容悬浮窗
+     * @param title 标题
+     * @param content 内容
+     */
+    @SuppressLint("InflateParams")
+    private fun showContentWindow(title: String, content: String) {
+        // 先关闭其他悬浮窗
+        dismissAllPopups()
+
+        // 加载布局
+        val rootView = android.view.LayoutInflater.from(this)
+            .inflate(R.layout.float_content_window, null)
+
+        // 设置标题
+        rootView.findViewById<TextView>(R.id.text_title).text = title
+
+        // 设置内容
+        rootView.findViewById<TextView>(R.id.text_content).text = content
+
+        // 设置关闭按钮
+        rootView.findViewById<ImageView>(R.id.btn_close).setOnClickListener {
+            dismissAllPopups()
+        }
+
+        // 计算窗口宽度（屏幕宽度的80%）
+        val windowWidth = (screenWidth * 0.85).toInt()
+
+        // 创建悬浮窗
+        contentPopupWindow = PopupWindow(
+            rootView,
+            windowWidth,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            // 设置外部可点击关闭
+            isOutsideTouchable = true
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            elevation = 16f
+
+            // 设置外部点击监听
+            setOnDismissListener {
+                contentPopupWindow = null
+                contentView = null
+            }
+        }
+
+        // 显示悬浮窗（居中偏上）
+        val x = (screenWidth - windowWidth) / 2
+        val y = screenHeight / 4
+
+        contentPopupWindow?.showAtLocation(
+            floatBallView,
+            Gravity.TOP or Gravity.START,
+            x,
+            y
+        )
+    }
+
+    /**
+     * 显示英雄讲解悬浮窗
+     * TODO: 上级返回英雄连招、出装、技巧等内容
+     */
+    private fun showHeroGuideWindow() {
+        val title = "英雄讲解"
+        val content = """
+            |=== 英雄讲解 ===
+            |
+            |连招技巧：
+            |• 技能1 → 技能2 → 普通攻击
+            |• 大招后接闪现可调整位置
+            |
+            |出装建议：
+            |• 抵抗之靴 - 提供韧性减少控制
+            |• 暗影战斧 - 增加输出和穿透
+            |• 破军 - 提升收割能力
+            |
+            |游戏技巧：
+            |• 注意走位，避免被集火
+            |• 观察敌方技能CD，把握进攻时机
+            |
+            |（内容由AI分析生成，具体以游戏实际为准）
+        """.trimMargin()
+
+        showContentWindow(title, content)
+    }
+
+    /**
+     * 显示赛前分析悬浮窗
+     * TODO: 上级返回阵容分析内容
+     */
+    private fun showPreMatchWindow() {
+        val title = "赛前分析"
+        val content = """
+            |=== 阵容分析 ===
+            |
+            |各分路对比：
+            |• 对抗路：我方略优，支援更快
+            |• 打野：我方节奏更好
+            |• 中路：双方五五开
+            |• 发育路：我方后期更强
+            |
+            |优势：
+            |• 团控技能较多
+            |• 手长英雄较多
+            |
+            |劣势：
+            |• 前期伤害略显不足
+            |
+            |强度评估：
+            |整体强度：中等偏上
+            |建议打法：稳扎稳打，拖到后期
+            |
+            |（分析由AI生成，仅供参考）
+        """.trimMargin()
+
+        showContentWindow(title, content)
+    }
+
+    /**
+     * 显示打法思路悬浮窗
+     * TODO: 上级返回全局打法、团战思路等内容
+     */
+    private fun showStrategyWindow() {
+        val title = "打法思路"
+        val content = """
+            |=== 打法思路 ===
+            |
+            |全局思路：
+            |• 开局稳健发育，避免送人头
+            |• 中期积极游走，带动节奏
+            |• 后期抱团推进，稳扎稳打
+            |
+            |团战思路：
+            |• 优先击杀敌方后排输出
+            |• 注意保护我方脆皮英雄
+            |• 利用控制技能打出一波流
+            |
+            |重点提示：
+            |• 保持良好心态，稳扎稳打
+            |• 多观察小地图，注意敌方动向
+            |• 合理分配资源，避免抢野
+            |
+            |（思路由AI分析生成，仅供参考）
+        """.trimMargin()
+
+        showContentWindow(title, content)
     }
 
     private inner class FloatBallTouchListener : View.OnTouchListener {
@@ -492,7 +742,31 @@ class FloatBallService : Service() {
                     takeScreenshot()
                 }
             }
-            
+
+            // 设置英雄讲解按钮
+            menuView.findViewById<LinearLayout>(R.id.btn_hero_guide).apply {
+                setOnClickListener {
+                    dismiss()
+                    showHeroGuideWindow()
+                }
+            }
+
+            // 设置赛前分析按钮
+            menuView.findViewById<LinearLayout>(R.id.btn_pre_match).apply {
+                setOnClickListener {
+                    dismiss()
+                    showPreMatchWindow()
+                }
+            }
+
+            // 设置打法思路按钮
+            menuView.findViewById<LinearLayout>(R.id.btn_strategy).apply {
+                setOnClickListener {
+                    dismiss()
+                    showStrategyWindow()
+                }
+            }
+
             // 设置关闭按钮
             menuView.findViewById<LinearLayout>(R.id.btn_close).apply {
                 // 设置图标颜色
