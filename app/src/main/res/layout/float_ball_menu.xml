@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/menu_background"
+    android:padding="16dp"
+    android:minWidth="180dp"
+    android:elevation="8dp">
+
+    <!-- 透明度调节 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="透明度"
+            android:textColor="#333333"
+            android:textSize="14sp" />
+
+        <SeekBar
+            android:id="@+id/seekbar_opacity"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:min="30"
+            android:max="100"
+            android:progress="100" />
+
+        <TextView
+            android:id="@+id/text_opacity"
+            android:layout_width="40dp"
+            android:layout_height="wrap_content"
+            android:text="100%"
+            android:textColor="#333333"
+            android:textSize="12sp"
+            android:gravity="end" />
+    </LinearLayout>
+
+    <!-- 分隔线 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0"
+        android:layout_marginBottom="8dp" />
+
+    <!-- 截图按钮 -->
+    <LinearLayout
+        android:id="@+id/btn_screenshot"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="?android:attr/selectableItemBackground"
+        android:paddingHorizontal="8dp">
+
+        <ImageView
+            android:id="@+id/icon_screenshot"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_screenshot" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="截图"
+            android:textColor="#333333"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- 关闭按钮 -->
+    <LinearLayout
+        android:id="@+id/btn_close"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="?android:attr/selectableItemBackground"
+        android:paddingHorizontal="8dp">
+
+        <ImageView
+            android:id="@+id/icon_close"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_close" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="关闭悬浮球"
+            android:textColor="#E53935"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+</LinearLayout>

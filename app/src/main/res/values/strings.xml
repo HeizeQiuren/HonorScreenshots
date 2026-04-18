@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">王者截图</string>
+    <string name="float_ball_notification_channel">悬浮球服务</string>
+    <string name="float_ball_notification_title">王者截图运行中</string>
+    <string name="float_ball_notification_text">点击截取屏幕</string>
+    <string name="screenshot_saved">截图已保存</string>
+    <string name="screenshot_failed">截图失败</string>
+    <string name="permission_denied">权限被拒绝</string>
+    <string name="open_folder">打开截图文件夹</string>
+    <string name="save_folder">保存文件夹</string>
+    <string name="screenshot_count">已截取 %d 张</string>
+    <string name="float_ball_enabled">悬浮球已开启</string>
+    <string name="float_ball_disabled">悬浮球已关闭</string>
+    <string name="grant_permission">授予权限</string>
+    <string name="permission_overlay">悬浮窗权限</string>
+    <string name="permission_storage">存储权限</string>
+    <string name="permission_projection">截屏权限</string>
+    <string name="accessibility_service_description">王者截图需要此权限来检测游戏启动，并在进入游戏时自动截图。</string>
+</resources>
