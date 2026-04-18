@@ -1,6 +1,6 @@
-# 王者截图 - API接口文档 (v2.0)
+# 王者截图 - API接口文档 (v2.1)
 
-本文档详细描述了"王者截图"应用的所有API接口，包括新增的"赛前分析"接口。
+本文档详细描述了"王者截图"应用的所有API接口，包括新增的"赛前分析"接口和阵容分析服务。
 
 ---
 
@@ -16,7 +16,9 @@
    - [教程与赛前分析](#教程与赛前分析)
 3. [状态接口](#状态接口)
 4. [UI回调接口](#ui回调接口)
-5. [扩展指南](#扩展指南)
+5. [阵容分析服务](#阵容分析服务)
+6. [数据模型](#数据模型)
+7. [扩展指南](#扩展指南)
 
 ---
 
@@ -27,11 +29,18 @@
 ### 文件位置
 
 ```
-app/src/main/java/com/honorshots/screenshot/ui/
-├── MainViewModel.kt      # 核心业务逻辑
-├── MainScreen.kt         # UI界面
-├── PermissionState.kt    # 状态模型
-└── MainActivity.kt       # Activity
+app/src/main/java/com/honorshots/screenshot/
+├── ui/
+│   ├── MainViewModel.kt      # 核心业务逻辑
+│   ├── MainScreen.kt         # UI界面
+│   ├── PermissionState.kt    # 状态模型
+│   └── MainActivity.kt       # Activity
+├── service/
+│   ├── FloatBallService.kt       # 悬浮球服务
+│   └── MatchAnalysisService.kt    # 阵容分析服务
+└── data/
+    ├── HeroData.kt           # 数据模型
+    └── HeroDatabase.kt       # 英雄数据库
 ```
 
 ---
@@ -356,6 +365,237 @@ data class PermissionState(
 
 ---
 
+## 阵容分析服务
+
+### MatchAnalysisService
+
+阵容分析服务类，负责分析王者荣耀对局中的阵容优劣。
+
+#### 文件位置
+```
+app/src/main/java/com/honorshots/screenshot/service/MatchAnalysisService.kt
+```
+
+#### 核心方法
+
+##### `analyzeMatch()`
+
+分析对局阵容。
+
+```kotlin
+fun analyzeMatch(
+    blueTeamHeroes: List<String>,    // 蓝方英雄名称列表（5个）
+    redTeamHeroes: List<String>,      // 红方英雄名称列表（5个）
+    blueTeamRanks: List<String> = List(5) { "钻石" },  // 蓝方段位
+    redTeamRanks: List<String> = List(5) { "钻石" }    // 红方段位
+): MatchAnalysis
+```
+
+**返回值**：`MatchAnalysis` - 对局分析结果
+
+**功能说明**：
+1. 解析双方英雄数据
+2. 智能分配分路位置
+3. 分析各项能力指标
+4. 生成克制关系
+5. 计算胜率评估
+6. 生成取胜关键点
+
+**使用示例**：
+```kotlin
+val analysis = MatchAnalysisService.analyzeMatch(
+    blueTeamHeroes = listOf("猪八戒", "娜可露露", "不知火舞", "后羿", "牛魔"),
+    redTeamHeroes = listOf("铠", "孙悟空", "安琪拉", "马可波罗", "张飞")
+)
+
+// 获取分析结果
+println("蓝方胜率: ${(analysis.winProbability * 100).toInt()}%")
+println("预估时长: ${analysis.estimatedDuration}")
+```
+
+---
+
+##### `generateDemoAnalysis()`
+
+生成演示分析数据（用于测试）。
+
+```kotlin
+fun generateDemoAnalysis(): MatchAnalysis
+```
+
+**返回值**：`MatchAnalysis` - 演示用分析结果
+
+---
+
+### 分析能力指标
+
+MatchAnalysisService 会计算以下能力指标：
+
+| 指标 | 说明 | 计算方式 |
+|------|------|----------|
+| 坦度 (tankiness) | 阵容承伤能力 | 英雄坦度属性之和 |
+| 控制 (control) | 控制技能数量 | 英雄控制属性之和 |
+| 爆发 (burstDamage) | 瞬间伤害输出 | 英雄爆发属性之和 |
+| 持续 (sustainedDamage) | 持续伤害输出 | 英雄持续伤害属性之和 |
+| 前期 (earlyGameStrength) | 前期作战能力 | 英雄前期属性之和 |
+| 后期 (lateGameStrength) | 后期作战能力 | 英雄后期属性之和 |
+| 开团 (initiationAbility) | 开团先手能力 | 控制+坦克数量计算 |
+| 保护 (peelAbility) | 保护后排能力 | 辅助+坦克+控制计算 |
+| 推塔 (pushAbility) | 推塔速度 | 英雄推塔属性之和 |
+| 团战 (teamFightStrength) | 团战胜负能力 | 综合计算 |
+
+---
+
+### 取胜关键点
+
+分析服务会生成以下类型的关键点：
+
+1. **坦度对比**：双方前排硬度对比
+2. **控制对比**：控制技能数量对比
+3. **前期对比**：前期强势程度对比
+4. **后期对比**：后期强势程度对比
+5. **开团能力**：开团与保护能力对比
+
+---
+
+## 数据模型
+
+### Hero
+
+英雄数据模型。
+
+```kotlin
+data class Hero(
+    val id: String,                    // 英雄ID
+    val name: String,                  // 英雄名称
+    val role: String,                  // 职业定位
+    val lane: Lane,                    // 推荐分路
+    val isTank: Boolean = false,       // 是否为坦克
+    val isFighter: Boolean = false,    // 是否为战士
+    val isMage: Boolean = false,       // 是否为法师
+    val isAssassin: Boolean = false,   // 是否为刺客
+    val isMarksman: Boolean = false,   // 是否为射手
+    val isSupport: Boolean = false,     // 是否为辅助
+    val controlAbility: Int = 0,       // 控制能力 (1-5)
+    val burstDamage: Int = 0,          // 爆发伤害 (1-5)
+    val sustainedDamage: Int = 0,      // 持续伤害 (1-5)
+    val tankiness: Int = 0,            // 坦度 (1-5)
+    val earlyGameStrength: Int = 0,    // 前期强度 (1-5)
+    val lateGameStrength: Int = 0,     // 后期强度 (1-5)
+    val mobility: Int = 0,              // 机动性 (1-5)
+    val pushAbility: Int = 0            // 推线能力 (1-5)
+)
+```
+
+---
+
+### Lane
+
+分路枚举。
+
+```kotlin
+enum class Lane(val displayName: String) {
+    TOP("对抗路"),
+    JUNGLE("打野"),
+    MID("中路"),
+    ADC("发育路"),
+    SUPPORT("辅助"),
+    UNKNOWN("未知")
+}
+```
+
+---
+
+### Team
+
+队伍枚举。
+
+```kotlin
+enum class Team(val displayName: String) {
+    BLUE("蓝方"),
+    RED("红方")
+}
+```
+
+---
+
+### Player
+
+玩家数据模型。
+
+```kotlin
+data class Player(
+    val hero: Hero,       // 所用英雄
+    val rank: String,      // 段位
+    val lane: Lane,       // 当前分路
+    val team: Team        // 所属队伍
+)
+```
+
+---
+
+### TeamAnalysis
+
+队伍分析结果。
+
+```kotlin
+data class TeamAnalysis(
+    val team: Team,                        // 队伍
+    val players: List<Player>,             // 队员列表
+    val totalTankiness: Int,               // 总坦度
+    val totalControl: Int,                  // 总控制能力
+    val totalBurstDamage: Int,             // 总爆发伤害
+    val totalSustainedDamage: Int,         // 总持续伤害
+    val earlyGameStrength: Int,             // 前期强度
+    val lateGameStrength: Int,             // 后期强度
+    val initiationAbility: Int,             // 开团能力
+    val peelAbility: Int,                  // 保护能力
+    val pushAbility: Int,                  // 推塔能力
+    val teamFightStrength: Int,            // 团战强度
+    val strengths: List<String>,           // 优势点
+    val weaknesses: List<String>,          // 劣势点
+    val overallStrength: Int,              // 整体强度 1-10
+    val recommendedStrategy: String         // 推荐策略
+)
+```
+
+---
+
+### MatchAnalysis
+
+对局分析结果。
+
+```kotlin
+data class MatchAnalysis(
+    val blueTeam: TeamAnalysis,                    // 蓝方分析
+    val redTeam: TeamAnalysis,                     // 红方分析
+    val counterAnalyses: List<CounterAnalysis>,   // 克制关系分析
+    val keyFactors: List<String>,                 // 取胜关键点
+    val recommendedPlaystyle: String,              // 推荐打法
+    val warnings: List<String>,                  // 需要注意的点
+    val winProbability: Float,                    // 胜率估算 (0-1)
+    val estimatedDuration: String,                 // 预估时长
+    val generatedTime: Long = System.currentTimeMillis()
+)
+```
+
+---
+
+### CounterAnalysis
+
+克制关系分析。
+
+```kotlin
+data class CounterAnalysis(
+    val heroName: String,           // 英雄名称
+    val counteredBy: List<String>,   // 被谁克制
+    val counters: List<String>,      // 克制谁
+    val synergyPartners: List<String> // 最佳搭档
+)
+```
+
+---
+
 ## 扩展指南
 
 ### 添加新功能示例
@@ -406,6 +646,45 @@ FunctionButton(
 )
 ```
 
+#### 4. 在悬浮球菜单中添加按钮
+
+```xml
+<!-- res/layout/float_ball_menu.xml -->
+<LinearLayout
+    android:id="@+id/btn_new_feature"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="?android:attr/selectableItemBackground"
+    android:paddingHorizontal="8dp">
+
+    <ImageView
+        android:id="@+id/icon_new_feature"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_new_feature" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:text="新功能"
+        android:textColor="#333333"
+        android:textSize="14sp" />
+</LinearLayout>
+```
+
+```kotlin
+// FloatBallService.kt
+menuView.findViewById<LinearLayout>(R.id.btn_new_feature).apply {
+    setOnClickListener {
+        dismiss()
+        // 执行新功能
+    }
+}
+```
+
 ---
 
 ### 数据持久化
@@ -415,6 +694,7 @@ FunctionButton(
 | 文件名 | 用途 |
 |--------|------|
 | `video_prefs` | 保存视频文件夹路径 |
+| `float_ball_prefs` | 保存悬浮球设置（如透明度） |
 
 ```kotlin
 // 保存数据
@@ -427,7 +707,37 @@ val path = prefs.getString("video_folder_path", null)
 
 ---
 
+### 添加新英雄
+
+在 `HeroDatabase.kt` 中添加新英雄数据：
+
+```kotlin
+"新英雄" to Hero(
+    id = "xxx",
+    name = "新英雄",
+    role = "战士",
+    lane = Lane.TOP,
+    isFighter = true,
+    tankiness = 3,
+    controlAbility = 3,
+    earlyGameStrength = 3,
+    lateGameStrength = 3,
+    // ... 其他属性
+)
+```
+
+---
+
 ## 更新日志
+
+### v2.1 (2026-04-18)
+- ✨ 新增赛前分析悬浮窗功能
+- ✨ 新增 MatchAnalysisService 阵容分析服务
+- ✨ 新增 HeroData.kt 数据模型
+- ✨ 新增 HeroDatabase.kt 英雄数据库
+- ✨ 实现阵容分析：坦度、控制、开团、输出等指标
+- ✨ 实现胜率评估与取胜关键点生成
+- ✨ 新增打法思路悬浮窗
 
 ### v2.0 (2026-04-18)
 - 新增"赛前分析"功能按钮及API接口

@@ -33,13 +33,13 @@
             android:contentDescription="关闭" />
     </LinearLayout>
 
-    <!-- 内容区域 -->
+    <!-- 内容区域 - 增大最大高度以显示完整分析 -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="48dp"
-        android:maxHeight="400dp"
-        android:padding="16dp">
+        android:maxHeight="500dp"
+        android:padding="12dp">
 
         <TextView
             android:id="@+id/text_content"
@@ -47,8 +47,9 @@
             android:layout_height="wrap_content"
             android:text="内容"
             android:textColor="#424242"
-            android:textSize="14sp"
-            android:lineSpacingExtra="4dp" />
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:lineSpacingExtra="2dp" />
     </ScrollView>
 
 </FrameLayout>

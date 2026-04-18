@@ -532,34 +532,156 @@ class FloatBallService : Service() {
 
     /**
      * 显示赛前分析悬浮窗
-     * TODO: 上级返回阵容分析内容
+     * 调用阵容分析服务生成详细分析报告
      */
     private fun showPreMatchWindow() {
-        val title = "赛前分析"
-        val content = """
-            |=== 阵容分析 ===
-            |
-            |各分路对比：
-            |• 对抗路：我方略优，支援更快
-            |• 打野：我方节奏更好
-            |• 中路：双方五五开
-            |• 发育路：我方后期更强
-            |
-            |优势：
-            |• 团控技能较多
-            |• 手长英雄较多
-            |
-            |劣势：
-            |• 前期伤害略显不足
-            |
-            |强度评估：
-            |整体强度：中等偏上
-            |建议打法：稳扎稳打，拖到后期
-            |
-            |（分析由AI生成，仅供参考）
-        """.trimMargin()
+        try {
+            // 执行阵容分析（使用演示数据）
+            // TODO: 实际使用时需要从图像识别模块获取英雄数据
+            val analysis = MatchAnalysisService.generateDemoAnalysis()
 
-        showContentWindow(title, content)
+            // 构建分析报告内容
+            val content = buildString {
+                // 胜率评估
+                appendLine("═══════════════════════════════════")
+                appendLine("        📊 阵容胜率评估")
+                appendLine("═══════════════════════════════════")
+                appendLine()
+                val blueWinRate = (analysis.winProbability * 100).toInt()
+                val redWinRate = 100 - blueWinRate
+                appendLine("🔵 蓝方预估胜率: $blueWinRate%")
+                appendLine("🔴 红方预估胜率: $redWinRate%")
+                appendLine("⏱️ 预估时长: ${analysis.estimatedDuration}")
+                appendLine()
+
+                // 蓝方分析
+                appendLine("═══════════════════════════════════")
+                appendLine("        🔵 蓝方阵容分析")
+                appendLine("═══════════════════════════════════")
+                appendLine()
+                appendLine("【阵容组成】")
+                analysis.blueTeam.players.forEachIndexed { index, player ->
+                    appendLine("  ${getLaneEmoji(player.lane)} ${player.lane.displayName}: ${player.hero.name} (${player.rank})")
+                }
+                appendLine()
+                appendLine("【能力评估】")
+                appendLine("  坦度: ${getBar(analysis.blueTeam.totalTankiness, 25)} ${analysis.blueTeam.totalTankiness}")
+                appendLine("  控制: ${getBar(analysis.blueTeam.totalControl, 25)} ${analysis.blueTeam.totalControl}")
+                appendLine("  爆发: ${getBar(analysis.blueTeam.totalBurstDamage, 25)} ${analysis.blueTeam.totalBurstDamage}")
+                appendLine("  持续: ${getBar(analysis.blueTeam.totalSustainedDamage, 25)} ${analysis.blueTeam.totalSustainedDamage}")
+                appendLine("  前期: ${getBar(analysis.blueTeam.earlyGameStrength, 25)} ${analysis.blueTeam.earlyGameStrength}")
+                appendLine("  后期: ${getBar(analysis.blueTeam.lateGameStrength, 25)} ${analysis.blueTeam.lateGameStrength}")
+                appendLine("  开团: ${getBar(analysis.blueTeam.initiationAbility, 25)} ${analysis.blueTeam.initiationAbility}")
+                appendLine()
+                appendLine("【优势点】")
+                analysis.blueTeam.strengths.forEach { appendLine("  ✅ $it") }
+                appendLine()
+                appendLine("【劣势点】")
+                analysis.blueTeam.weaknesses.forEach { appendLine("  ⚠️ $it") }
+                appendLine()
+                appendLine("【整体强度】${getStrengthEmoji(analysis.blueTeam.overallStrength)} ".padEnd(30) + "★".repeat(analysis.blueTeam.overallStrength))
+                appendLine()
+
+                // 红方分析
+                appendLine("═══════════════════════════════════")
+                appendLine("        🔴 红方阵容分析")
+                appendLine("═══════════════════════════════════")
+                appendLine()
+                appendLine("【阵容组成】")
+                analysis.redTeam.players.forEachIndexed { index, player ->
+                    appendLine("  ${getLaneEmoji(player.lane)} ${player.lane.displayName}: ${player.hero.name} (${player.rank})")
+                }
+                appendLine()
+                appendLine("【能力评估】")
+                appendLine("  坦度: ${getBar(analysis.redTeam.totalTankiness, 25)} ${analysis.redTeam.totalTankiness}")
+                appendLine("  控制: ${getBar(analysis.redTeam.totalControl, 25)} ${analysis.redTeam.totalControl}")
+                appendLine("  爆发: ${getBar(analysis.redTeam.totalBurstDamage, 25)} ${analysis.redTeam.totalBurstDamage}")
+                appendLine("  持续: ${getBar(analysis.redTeam.totalSustainedDamage, 25)} ${analysis.redTeam.totalSustainedDamage}")
+                appendLine("  前期: ${getBar(analysis.redTeam.earlyGameStrength, 25)} ${analysis.redTeam.earlyGameStrength}")
+                appendLine("  后期: ${getBar(analysis.redTeam.lateGameStrength, 25)} ${analysis.redTeam.lateGameStrength}")
+                appendLine("  开团: ${getBar(analysis.redTeam.initiationAbility, 25)} ${analysis.redTeam.initiationAbility}")
+                appendLine()
+                appendLine("【优势点】")
+                analysis.redTeam.strengths.forEach { appendLine("  ✅ $it") }
+                appendLine()
+                appendLine("【劣势点】")
+                analysis.redTeam.weaknesses.forEach { appendLine("  ⚠️ $it") }
+                appendLine()
+                appendLine("【整体强度】${getStrengthEmoji(analysis.redTeam.overallStrength)} ".padEnd(30) + "★".repeat(analysis.redTeam.overallStrength))
+                appendLine()
+
+                // 取胜关键点
+                appendLine("═══════════════════════════════════")
+                appendLine("        🏆 取胜关键点")
+                appendLine("═══════════════════════════════════")
+                appendLine()
+                analysis.keyFactors.forEach { appendLine("  📌 $it") }
+                appendLine()
+
+                // 推荐打法
+                appendLine("═══════════════════════════════════")
+                appendLine("        🎮 推荐打法")
+                appendLine("═══════════════════════════════════")
+                appendLine()
+                appendLine("  📋 蓝方: ${analysis.blueTeam.recommendedStrategy}")
+                appendLine("  📋 红方: ${analysis.redTeam.recommendedStrategy}")
+                appendLine()
+
+                // 警告
+                if (analysis.warnings.isNotEmpty()) {
+                    appendLine("═══════════════════════════════════")
+                    appendLine("        ⚠️ 注意事项")
+                    appendLine("═══════════════════════════════════")
+                    appendLine()
+                    analysis.warnings.forEach { appendLine("  ⚠️ $it") }
+                    appendLine()
+                }
+
+                appendLine("═══════════════════════════════════")
+                appendLine("  本分析仅供参考，实际效果以游戏为准")
+                appendLine("═══════════════════════════════════")
+            }
+
+            showContentWindow("赛前分析", content)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "分析失败: ${e.message}")
+            showContentWindow("赛前分析", "分析失败，请重试\n\n错误: ${e.message}")
+        }
+    }
+
+    /**
+     * 生成进度条
+     */
+    private fun getBar(value: Int, max: Int): String {
+        val filled = (value * 10 / max).coerceIn(0, 10)
+        return "█".repeat(filled) + "░".repeat(10 - filled)
+    }
+
+    /**
+     * 获取强度表情
+     */
+    private fun getStrengthEmoji(strength: Int): String {
+        return when (strength) {
+            in 1..3 -> "🟢"
+            in 4..6 -> "🟡"
+            in 7..10 -> "🔴"
+            else -> "⚪"
+        }
+    }
+
+    /**
+     * 获取分路表情
+     */
+    private fun getLaneEmoji(lane: com.honorshots.screenshot.data.Lane): String {
+        return when (lane) {
+            com.honorshots.screenshot.data.Lane.TOP -> "🏆"
+            com.honorshots.screenshot.data.Lane.JUNGLE -> "🦁"
+            com.honorshots.screenshot.data.Lane.MID -> "⭐"
+            com.honorshots.screenshot.data.Lane.ADC -> "🏹"
+            com.honorshots.screenshot.data.Lane.SUPPORT -> "💚"
+            com.honorshots.screenshot.data.Lane.UNKNOWN -> "❓"
+        }
     }
 
     /**

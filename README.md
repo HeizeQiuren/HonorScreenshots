@@ -28,7 +28,12 @@
 ### 5. AI与扩展功能
 - 🤖 **AI分析**: 预留接口，支持后续扩展AI分析功能
 - 📚 **搜索教程视频**: 一键跳转腾讯元宝AI对话页面
-- 🎮 **赛前分析**: 预留接口，支持游戏赛前分析功能
+- 🎮 **赛前分析**: 阵容实时分析，支持识别英雄、评估优劣
+
+### 6. 悬浮球高级功能
+- 📊 **英雄讲解**: 显示英雄连招、出装、技巧
+- 📈 **赛前分析**: 分析双方阵容的坦度、控制、开团、输出等
+- 💡 **打法思路**: 提供全局打法和团战思路建议
 
 ## API接口文档
 
@@ -75,10 +80,15 @@ HonorScreenshots/
 │   │   │   │   ├── MainViewModel.kt        # ViewModel (API核心)
 │   │   │   │   ├── PermissionState.kt      # 权限状态模型
 │   │   │   │   └── theme/                  # Compose主题
-│   │   │   └── service/
-│   │   │       └── FloatBallService.kt     # 悬浮球服务
+│   │   │   ├── service/
+│   │   │   │   ├── FloatBallService.kt     # 悬浮球服务
+│   │   │   │   └── MatchAnalysisService.kt # 阵容分析服务
+│   │   │   └── data/
+│   │   │       ├── HeroData.kt            # 数据模型
+│   │   │       └── HeroDatabase.kt        # 英雄数据库
 │   │   ├── res/
 │   │   │   ├── drawable/                   # 矢量图标
+│   │   │   ├── layout/                     # 布局文件
 │   │   │   ├── values/                     # 资源文件
 │   │   │   └── mipmap-*/                   # 应用图标
 │   │   └── AndroidManifest.xml
