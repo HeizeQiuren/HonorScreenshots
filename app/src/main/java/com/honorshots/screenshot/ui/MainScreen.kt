@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Menu
@@ -247,6 +248,9 @@ fun MainScreenWithViewModel(
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 featureAnalysisLauncher.launch(intent)
+            },
+            onPreMatchAnalysis = {
+                viewModel.performPreMatchAnalysis()
             }
         )
     }
@@ -380,7 +384,8 @@ fun DrawerContent(
     onSelectVideoFolder: () -> Unit,
     onOpenVideoFolder: () -> Unit,
     onPerformAIAnalysis: () -> Unit,
-    onFeatureAnalysis: () -> Unit
+    onFeatureAnalysis: () -> Unit,
+    onPreMatchAnalysis: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -498,6 +503,16 @@ fun DrawerContent(
             title = "搜索教程视频",
             onClick = {
                 onFeatureAnalysis()
+                onCloseDrawer()
+            }
+        )
+
+        // 赛前分析按钮
+        DrawerFunctionItem(
+            icon = Icons.Default.Assessment,
+            title = "赛前分析",
+            onClick = {
+                onPreMatchAnalysis()
                 onCloseDrawer()
             }
         )

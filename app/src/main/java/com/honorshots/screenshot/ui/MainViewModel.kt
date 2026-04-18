@@ -268,6 +268,31 @@ class MainViewModel @Inject constructor(
         return "https://yuanqi.tencent.com/webim/#/chat/SbIwIL?appid=2043231099212303552&experience=true"
     }
 
+    /**
+     * API接口：赛前分析
+     * 预留接口，用于王者荣耀等游戏的赛前分析功能
+     * @return 赛前分析网站地址
+     */
+    fun getPreMatchAnalysisUrl(): String {
+        // TODO: 替换为实际的赛前分析网站地址
+        return "https://yuanqi.tencent.com/webim/#/chat/SbIwIL?appid=2043231099212303552&experience=true"
+    }
+
+    /**
+     * 执行赛前分析
+     * 预留接口方法，可扩展具体分析逻辑
+     */
+    fun performPreMatchAnalysis() {
+        viewModelScope.launch {
+            // TODO: 实现赛前分析功能
+            // 可扩展功能：
+            // - 读取用户视频文件
+            // - 分析历史战绩
+            // - 提供阵容建议
+            showToast("赛前分析功能正在开发中...")
+        }
+    }
+
     init {
         // 加载已保存的视频文件夹路径
         _state.update { it.copy(videoFolderPath = getVideoFolderPath()) }
