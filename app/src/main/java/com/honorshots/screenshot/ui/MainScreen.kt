@@ -31,8 +31,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Menu
@@ -178,11 +176,6 @@ fun MainScreenWithViewModel(
         }
     }
 
-    // 功能分析跳转launcher
-    val featureAnalysisLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { }
-
     // 检查通知权限
     fun checkNotificationPermission(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -242,16 +235,7 @@ fun MainScreenWithViewModel(
             onOpenSaveFolderSettings = { viewModel.openSaveFolderSettings() },
             onSelectVideoFolder = { videoFolderPickerLauncher.launch(null) },
             onOpenVideoFolder = { viewModel.openVideoFolder() },
-            onPerformAIAnalysis = { viewModel.performAIAnalysis() },
-            onFeatureAnalysis = {
-                val url = viewModel.getFeatureAnalysisUrl()
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                featureAnalysisLauncher.launch(intent)
-            },
-            onPreMatchAnalysis = {
-                viewModel.performPreMatchAnalysis()
-            }
+            onPerformAIAnalysis = { viewModel.openAIAnalysisUrl() }
         )
     }
 
@@ -383,9 +367,7 @@ fun DrawerContent(
     onOpenSaveFolderSettings: () -> Unit,
     onSelectVideoFolder: () -> Unit,
     onOpenVideoFolder: () -> Unit,
-    onPerformAIAnalysis: () -> Unit,
-    onFeatureAnalysis: () -> Unit,
-    onPreMatchAnalysis: () -> Unit
+    onPerformAIAnalysis: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -494,25 +476,6 @@ fun DrawerContent(
             title = "进行AI分析",
             onClick = {
                 onPerformAIAnalysis()
-                onCloseDrawer()
-            }
-        )
-
-        DrawerFunctionItem(
-            icon = Icons.Default.Analytics,
-            title = "搜索教程视频",
-            onClick = {
-                onFeatureAnalysis()
-                onCloseDrawer()
-            }
-        )
-
-        // 赛前分析按钮
-        DrawerFunctionItem(
-            icon = Icons.Default.Assessment,
-            title = "赛前分析",
-            onClick = {
-                onPreMatchAnalysis()
                 onCloseDrawer()
             }
         )

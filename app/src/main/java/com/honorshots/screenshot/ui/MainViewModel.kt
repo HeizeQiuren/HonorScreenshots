@@ -238,59 +238,35 @@ class MainViewModel @Inject constructor(
 
     /**
      * API接口：进行AI分析
-     * 预留接口，方便后续扩展AI相关功能
-     * 目前仅显示提示信息
+     * 点击后在应用内部打开指定的AI分析链接
      */
     fun performAIAnalysis() {
         viewModelScope.launch {
-            // TODO: 实现AI分析功能
-            // 预留接口，可扩展：
-            // - 读取视频文件
-            // - 调用AI模型分析
-            // - 返回分析结果
-            showToast("AI分析功能正在开发中...")
+            // 在应用内打开AI分析链接
+            openAIAnalysisUrl()
         }
     }
 
     /**
-     * API接口：搜索教程视频
-     * 点击后跳转至腾讯元宝AI对话页面
+     * 打开AI分析URL
+     * 使用应用内浏览器打开指定链接
      */
-    fun analyzeFeatures(): String {
-        return "https://yuanqi.tencent.com/webim/#/chat/SbIwIL?appid=2043231099212303552&experience=true"
-    }
-
-    /**
-     * 获取功能分析跳转URL
-     * @return 功能分析网站地址
-     */
-    fun getFeatureAnalysisUrl(): String {
-        return "https://yuanqi.tencent.com/webim/#/chat/SbIwIL?appid=2043231099212303552&experience=true"
-    }
-
-    /**
-     * API接口：赛前分析
-     * 预留接口，用于王者荣耀等游戏的赛前分析功能
-     * @return 赛前分析网站地址
-     */
-    fun getPreMatchAnalysisUrl(): String {
-        // TODO: 替换为实际的赛前分析网站地址
-        return "https://yuanqi.tencent.com/webim/#/chat/SbIwIL?appid=2043231099212303552&experience=true"
-    }
-
-    /**
-     * 执行赛前分析
-     * 预留接口方法，可扩展具体分析逻辑
-     */
-    fun performPreMatchAnalysis() {
+    fun openAIAnalysisUrl() {
         viewModelScope.launch {
-            // TODO: 实现赛前分析功能
-            // 可扩展功能：
-            // - 读取用户视频文件
-            // - 分析历史战绩
-            // - 提供阵容建议
-            showToast("赛前分析功能正在开发中...")
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(AI_ANALYSIS_URL)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                application.startActivity(intent)
+            } catch (e: Exception) {
+                showToast("无法打开链接，请检查网络")
+            }
         }
+    }
+
+    companion object {
+        // AI分析链接地址
+        const val AI_ANALYSIS_URL = "http://110.40.192.112"
     }
 
     init {
