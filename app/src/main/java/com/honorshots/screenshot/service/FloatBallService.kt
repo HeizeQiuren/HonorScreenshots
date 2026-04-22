@@ -32,6 +32,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
+import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
@@ -39,8 +40,16 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.honorshots.screenshot.R
 import com.honorshots.screenshot.ui.MainActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -49,7 +58,7 @@ class FloatBallService : Service() {
 
     companion object {
         private const val TAG = "FloatBallService"
-        
+
         const val ACTION_SCREENSHOT = "com.honorshots.screenshot.ACTION_SCREENSHOT"
         const val ACTION_INIT_PROJECTION = "com.honorshots.screenshot.ACTION_INIT_PROJECTION"
         const val ACTION_SCREENSHOT_COUNT_UPDATED = "com.honorshots.screenshot.ACTION_SCREENSHOT_COUNT_UPDATED"
@@ -58,7 +67,10 @@ class FloatBallService : Service() {
         const val CHANNEL_ID_SCREENSHOT = "screenshot_channel"
         const val NOTIFICATION_ID = 1001
         const val SCREENSHOT_NOTIFICATION_ID = 1002
-        
+
+        // 服务器地址
+        const val SERVER_URL = "http://110.40.192.112/api/chat"
+
         // 服务运行状态
         val isRunning = kotlinx.coroutines.flow.MutableStateFlow(false)
     }
@@ -66,7 +78,7 @@ class FloatBallService : Service() {
     private var windowManager: WindowManager? = null
     private var floatBallView: FrameLayout? = null
     private var layoutParams: WindowManager.LayoutParams? = null
-    
+
     // 菜单相关
     private var menuPopupWindow: PopupWindow? = null
     private var currentOpacity = 100
@@ -74,6 +86,10 @@ class FloatBallService : Service() {
     // 内容悬浮窗相关
     private var contentPopupWindow: PopupWindow? = null
     private var contentView: View? = null
+
+    // 方形悬浮窗相关
+    private var squarePopupWindow: PopupWindow? = null
+    private var squareWindowView: View? = null
 
     // 自动置顶检测
     private var topCheckRunnable: Runnable? = null
@@ -438,9 +454,258 @@ class FloatBallService : Service() {
             contentPopupWindow?.dismiss()
             contentPopupWindow = null
             contentView = null
+            dismissSquareWindow()
         } catch (e: Exception) {
             Log.e(TAG, "Error dismissing popups: ${e.message}")
         }
+    }
+
+    // ==================== 方形悬浮窗（赛前分析测试） ====================
+
+    /**
+     * 显示方形悬浮窗（赛前分析测试结果）
+     * @param title 标题
+     * @param content 内容
+     */
+    @SuppressLint("InflateParams")
+    private fun showSquareWindow(title: String, content: String) {
+        // 先关闭其他悬浮窗
+        dismissAllPopups()
+
+        // 加载布局
+        squareWindowView = android.view.LayoutInflater.from(this)
+            .inflate(R.layout.float_square_window, null)
+
+        // 设置标题
+        squareWindowView?.findViewById<TextView>(R.id.text_title)?.text = title
+
+        // 设置内容
+        squareWindowView?.findViewById<TextView>(R.id.text_content)?.text = content
+
+        // 隐藏加载视图
+        squareWindowView?.findViewById<LinearLayout>(R.id.loading_view)?.visibility = View.GONE
+
+        // 设置关闭按钮
+        squareWindowView?.findViewById<TextView>(R.id.btn_close)?.setOnClickListener {
+            dismissSquareWindow()
+        }
+
+        // 计算窗口宽度
+        val windowWidth = dpToPx(300)
+
+        // 创建悬浮窗
+        squarePopupWindow = PopupWindow(
+            squareWindowView,
+            windowWidth,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            // 设置外部可点击关闭
+            isOutsideTouchable = true
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            elevation = 16f
+
+            // 设置外部点击监听
+            setOnDismissListener {
+                squarePopupWindow = null
+                squareWindowView = null
+            }
+        }
+
+        // 显示悬浮窗（居中）
+        val x = (screenWidth - windowWidth) / 2
+        val y = screenHeight / 4
+
+        squarePopupWindow?.showAtLocation(
+            floatBallView,
+            Gravity.TOP or Gravity.START,
+            x,
+            y
+        )
+        Log.d(TAG, "Square window shown")
+    }
+
+    /**
+     * 显示加载中的方形悬浮窗
+     */
+    @SuppressLint("InflateParams")
+    private fun showSquareWindowLoading() {
+        // 先关闭其他悬浮窗
+        dismissAllPopups()
+
+        // 加载布局
+        squareWindowView = android.view.LayoutInflater.from(this)
+            .inflate(R.layout.float_square_window, null)
+
+        // 设置标题
+        squareWindowView?.findViewById<TextView>(R.id.text_title)?.text = "赛前分析"
+
+        // 设置内容文本为空
+        squareWindowView?.findViewById<TextView>(R.id.text_content)?.visibility = View.GONE
+
+        // 显示加载视图
+        squareWindowView?.findViewById<LinearLayout>(R.id.loading_view)?.visibility = View.VISIBLE
+
+        // 设置关闭按钮
+        squareWindowView?.findViewById<TextView>(R.id.btn_close)?.setOnClickListener {
+            dismissSquareWindow()
+        }
+
+        // 计算窗口宽度
+        val windowWidth = dpToPx(300)
+
+        // 创建悬浮窗
+        squarePopupWindow = PopupWindow(
+            squareWindowView,
+            windowWidth,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            // 设置外部可点击关闭
+            isOutsideTouchable = true
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            elevation = 16f
+
+            // 设置外部点击监听
+            setOnDismissListener {
+                squarePopupWindow = null
+                squareWindowView = null
+            }
+        }
+
+        // 显示悬浮窗（居中）
+        val x = (screenWidth - windowWidth) / 2
+        val y = screenHeight / 4
+
+        squarePopupWindow?.showAtLocation(
+            floatBallView,
+            Gravity.TOP or Gravity.START,
+            x,
+            y
+        )
+        Log.d(TAG, "Square window loading shown")
+    }
+
+    /**
+     * 更新方形悬浮窗内容
+     */
+    private fun updateSquareWindowContent(content: String) {
+        squareWindowView?.findViewById<LinearLayout>(R.id.loading_view)?.visibility = View.GONE
+        squareWindowView?.findViewById<TextView>(R.id.text_content)?.visibility = View.VISIBLE
+        squareWindowView?.findViewById<TextView>(R.id.text_content)?.text = content
+    }
+
+    /**
+     * 关闭方形悬浮窗
+     */
+    private fun dismissSquareWindow() {
+        try {
+            squarePopupWindow?.dismiss()
+            squarePopupWindow = null
+            squareWindowView = null
+            Log.d(TAG, "Square window dismissed")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error dismissing square window: ${e.message}")
+        }
+    }
+
+    /**
+     * 发送聊天请求到服务器
+     * @param message 发送的消息
+     */
+    private fun sendChatRequest(message: String) {
+        // 显示加载中
+        showSquareWindowLoading()
+
+        // 使用协程进行网络请求
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    performChatRequest(message)
+                }
+
+                // 处理结果
+                if (result != null) {
+                    val json = JSONObject(result)
+                    val success = json.optBoolean("success", false)
+                    if (success) {
+                        val reply = json.optString("reply", "无回复内容")
+                        updateSquareWindowContent(reply)
+                        Log.d(TAG, "Chat request success: $reply")
+                    } else {
+                        val error = json.optString("error", "未知错误")
+                        updateSquareWindowContent("请求失败: $error")
+                        Log.e(TAG, "Chat request failed: $error")
+                    }
+                } else {
+                    updateSquareWindowContent("网络请求失败，请检查网络连接")
+                    Log.e(TAG, "Chat request returned null")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Chat request exception: ${e.message}")
+                updateSquareWindowContent("请求异常: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * 执行聊天请求（网络请求在IO线程执行）
+     */
+    private fun performChatRequest(message: String): String? {
+        var connection: HttpURLConnection? = null
+        try {
+            val url = URL(SERVER_URL)
+            connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.doOutput = true
+            connection.doInput = true
+            connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+            connection.connectTimeout = 60000
+            connection.readTimeout = 60000
+
+            // 发送JSON数据
+            val jsonBody = JSONObject().apply {
+                put("message", message)
+                put("images", org.json.JSONArray())
+            }
+
+            val outputStream = connection.outputStream
+            val writer = OutputStreamWriter(outputStream, "UTF-8")
+            writer.write(jsonBody.toString())
+            writer.flush()
+            writer.close()
+            outputStream.close()
+
+            // 获取响应
+            val responseCode = connection.responseCode
+            Log.d(TAG, "Response code: $responseCode")
+
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                val inputStream = connection.inputStream
+                val reader = inputStream.bufferedReader()
+                val response = reader.readText()
+                reader.close()
+                inputStream.close()
+                return response
+            } else {
+                Log.e(TAG, "HTTP error: $responseCode")
+                return JSONObject().put("success", false).put("error", "HTTP错误: $responseCode").toString()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Network error: ${e.message}")
+            return JSONObject().put("success", false).put("error", "网络异常: ${e.message}").toString()
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
+    /**
+     * 显示赛前分析测试（点击按钮后触发）
+     */
+    private fun onPreMatchTestClick() {
+        Log.d(TAG, ">>> Pre-match test button clicked")
+        // 发送请求到服务器
+        sendChatRequest("你好，你是谁")
     }
 
     /**
@@ -650,6 +915,16 @@ class FloatBallService : Service() {
                 setOnClickListener {
                     dismiss()
                     takeScreenshot()
+                }
+            }
+
+            // 设置赛前分析测试按钮
+            menuView.findViewById<LinearLayout>(R.id.btn_pre_match_test).apply {
+                // 设置图标颜色
+                findViewById<ImageView>(R.id.icon_pre_match_test)?.setColorFilter(Color.parseColor("#6366F1"))
+                setOnClickListener {
+                    dismiss()
+                    onPreMatchTestClick()
                 }
             }
 
