@@ -323,7 +323,7 @@ class FloatBallService : Service() {
         // ========== 计算正方形边长 = 屏幕总面积的 2% ==========
         val screenArea = screenWidth.toLong() * screenHeight.toLong()
         val ballArea = (screenArea * 0.02).toInt()
-        ballSidePx = sqrt(ballArea.toDouble()).toInt()
+        ballSidePx = (sqrt(ballArea.toDouble()) * 3 / 5).toInt()
 
         // 圆角半径 = 边长的 1/6
         val cornerRadiusPx = (ballSidePx / 6f)
