@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Outline
 import android.graphics.PixelFormat
 import android.os.Build
 import android.hardware.display.DisplayManager
@@ -27,6 +28,7 @@ import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewOutlineProvider
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -53,6 +55,7 @@ import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.sqrt
 
 class FloatBallService : Service() {
 
@@ -140,6 +143,7 @@ class FloatBallService : Service() {
     private var screenWidth = 0
     private var screenHeight = 0
     private var densityDpi = 0
+    private var ballSidePx = 0  // 正方形悬浮球边长（px）
 
     // MediaProjection 是否已初始化
     private var projectionInitialized = false
@@ -154,8 +158,8 @@ class FloatBallService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
         
-        // 加载保存的透明度
-        currentOpacity = prefs.getInt("opacity", 100)
+        // 加载保存的透明度（默认70%）
+        currentOpacity = prefs.getInt("opacity", 70)
         
         createFloatBall()
 
@@ -307,7 +311,7 @@ class FloatBallService : Service() {
             Log.d(TAG, "FloatBall already exists, removing first...")
             removeFloatBall()
         }
-        
+
         // 获取屏幕尺寸
         val displayMetrics = DisplayMetrics()
         @Suppress("DEPRECATION")
@@ -315,39 +319,52 @@ class FloatBallService : Service() {
         screenWidth = displayMetrics.widthPixels
         screenHeight = displayMetrics.heightPixels
         densityDpi = displayMetrics.densityDpi
-        
-        Log.d(TAG, "Screen: ${screenWidth}x${screenHeight}, density=$densityDpi")
 
-        // 创建悬浮球容器
+        // ========== 计算正方形边长 = 屏幕总面积的 2% ==========
+        val screenArea = screenWidth.toLong() * screenHeight.toLong()
+        val ballArea = (screenArea * 0.02).toInt()
+        ballSidePx = sqrt(ballArea.toDouble()).toInt()
+
+        // 圆角半径 = 边长的 1/6
+        val cornerRadiusPx = (ballSidePx / 6f)
+
+        Log.d(TAG, "Screen: ${screenWidth}x${screenHeight}, BallSide: ${ballSidePx}px, Radius: ${cornerRadiusPx}px")
+
+        // ========== 创建悬浮球 = 圆角正方形 ==========
         floatBallView = FrameLayout(this).apply {
-            // 背景圆
-            setBackgroundResource(R.drawable.float_ball_background)
-            
-            // 设置透明度
-            alpha = currentOpacity / 100f
-
-            // 相机图标
-            val iconView = ImageView(this@FloatBallService).apply {
-                setImageResource(R.drawable.ic_float_ball_camera)
-                layoutParams = FrameLayout.LayoutParams(
-                    dpToPx(32),
-                    dpToPx(32)
-                ).apply {
-                    gravity = Gravity.CENTER
+            // 开启圆角裁切：图片方角直接被圆角裁掉
+            clipToOutline = true
+            outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setRoundRect(0, 0, view.width, view.height, cornerRadiusPx)
                 }
             }
-            addView(iconView)
 
-            // 设置触摸事件（同时处理点击和拖动）
+            // 圆角正方形背景（白色底色 + 圆角 shape 配合 clipToOutline 裁切）
+            setBackgroundResource(R.drawable.float_square_bg)
+
+            // ===== LOGO 图片：铺满整个正方形区域，无留白 =====
+            val logoView = ImageView(this@FloatBallService).apply {
+                setImageResource(R.drawable.logo)
+                scaleType = ImageView.ScaleType.FIT_XY  // 拉伸铺满，四角被圆角裁切
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+            }
+            addView(logoView)
+
+            // 整体 70% 不透明度（半透效果，可看清下方内容）
+            alpha = currentOpacity / 100f
+
+            // 触摸事件（拖拽 + 点击）
             setOnTouchListener(FloatBallTouchListener())
         }
 
-        // 设置布局参数
-        // 使用 TYPE_APPLICATION_OVERLAY（Android 8.0+ 标准悬浮窗类型）
-        // 注意：王者荣耀等全屏游戏可能会覆盖悬浮窗，这是系统设计限制
+        // ========== 窗口布局参数 ==========
         layoutParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            ballSidePx,
+            ballSidePx,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
@@ -357,18 +374,17 @@ class FloatBallService : Service() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = screenWidth - dpToPx(70)
-            y = screenHeight / 2 - dpToPx(30)
+            // 初始位置：右侧边缘吸附，一半显示一半隐藏
+            x = screenWidth - ballSidePx / 2
+            y = screenHeight / 2 - ballSidePx / 2
         }
 
         try {
             windowManager?.addView(floatBallView, layoutParams)
-            Log.d(TAG, "FloatBall added to window successfully")
+            Log.d(TAG, "FloatBall square added to window successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to add float ball: ${e.message}", e)
-            // 检查是否是权限问题
             if (!android.provider.Settings.canDrawOverlays(this)) {
-                Log.e(TAG, "SYSTEM_ALERT_WINDOW permission not granted!")
                 Toast.makeText(this, "请授予悬浮窗权限", Toast.LENGTH_LONG).show()
             } else {
                 Toast.makeText(this, "创建悬浮球失败: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -807,19 +823,26 @@ class FloatBallService : Service() {
                     val deltaX = (event.rawX - startX).toInt()
                     val deltaY = (event.rawY - startY).toInt()
                     Log.d(TAG, "ACTION_UP: isDragging=$isDragging, deltaX=$deltaX, deltaY=$deltaY")
-                    
+
                     if (isDragging) {
-                        // 吸附到屏幕边缘
-                        val newX = layoutParams?.x ?: 0
-                        val targetX = if (newX < screenWidth / 2) {
-                            dpToPx(10) // 吸附到左边
-                        } else {
-                            screenWidth - dpToPx(70) // 吸附到右边
+                        val currentX = layoutParams?.x ?: 0
+                        val side = ballSidePx
+                        // 磁吸阈值：靠近边缘 ballSidePx/3 范围内触发吸附
+                        val snapThreshold = side / 3
+
+                        val targetX = when {
+                            // 靠近左边缘 → 吸附到左侧，一半隐藏
+                            currentX < snapThreshold -> -side / 2
+                            // 靠近右边缘 → 吸附到右侧，一半隐藏
+                            currentX > screenWidth - side - snapThreshold -> screenWidth - side / 2
+                            // 不靠近边缘 → 停在当前位置
+                            else -> currentX
                         }
-                        
-                        // 使用动画平滑移动到边缘
-                        animateToEdge(targetX)
-                        return true // 拖动时消费事件
+
+                        if (targetX != currentX) {
+                            animateToEdge(targetX)
+                        }
+                        return true
                     } else {
                         // 点击事件：显示菜单
                         Log.d(TAG, ">>> Tap detected, showing menu")
