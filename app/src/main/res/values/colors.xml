@@ -1,29 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Primary Colors -->
-    <color name="primary">#6366F1</color>
-    <color name="primary_variant">#4F46E5</color>
-    <color name="secondary">#8B5CF6</color>
+    <!-- Dark Gold Luxury Theme Colors -->
+    <color name="dark_gold">#C9A96E</color>
+    <color name="dark_gold_light">#D4AF37</color>
+    <color name="dark_gold_dim">#8B7332</color>
 
-    <!-- Background Colors -->
-    <color name="background">#0F172A</color>
-    <color name="surface">#1E293B</color>
-    <color name="surface_variant">#334155</color>
-
-    <!-- Accent Colors -->
-    <color name="accent">#22D3EE</color>
-    <color name="accent_variant">#06B6D4</color>
+    <!-- Matte Pure Black Background -->
+    <color name="background">#0A0A0A</color>
+    <color name="surface">#141414</color>
+    <color name="surface_variant">#2A2A2A</color>
 
     <!-- Text Colors -->
-    <color name="text_primary">#F8FAFC</color>
-    <color name="text_secondary">#94A3B8</color>
+    <color name="text_primary">#C9A96E</color>
+    <color name="text_secondary">#8B7332</color>
 
     <!-- Status Colors -->
     <color name="success">#22C55E</color>
     <color name="error">#EF4444</color>
     <color name="warning">#F59E0B</color>
 
-    <!-- Float Ball -->
+    <!-- Float Ball (保持原有配色) -->
     <color name="float_ball_bg">#6366F1</color>
     <color name="float_ball_icon">#FFFFFF</color>
+
+    <!-- 向下兼容 -->
+    <color name="primary">#C9A96E</color>
+    <color name="primary_variant">#8B7332</color>
+    <color name="secondary">#D4AF37</color>
+    <color name="accent">#D4AF37</color>
+    <color name="accent_variant">#8B7332</color>
 </resources>

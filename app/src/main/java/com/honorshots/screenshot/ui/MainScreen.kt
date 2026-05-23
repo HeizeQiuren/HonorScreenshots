@@ -13,13 +13,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,67 +32,74 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.VideoLibrary
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Psychology
+import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.Smartphone
+import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.outlined.VideoLibrary
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.Divider
+import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.honorshots.screenshot.service.FloatBallService
 import com.honorshots.screenshot.service.ProjectionPermissionManager
-import com.honorshots.screenshot.ui.theme.Accent
-import com.honorshots.screenshot.ui.theme.Primary
-import com.honorshots.screenshot.ui.theme.Secondary
+import com.honorshots.screenshot.ui.theme.CardBackground
+import com.honorshots.screenshot.ui.theme.CardBorder
+import com.honorshots.screenshot.ui.theme.DarkGold
+import com.honorshots.screenshot.ui.theme.DarkGoldDim
+import com.honorshots.screenshot.ui.theme.DarkGoldLight
+import com.honorshots.screenshot.ui.theme.GoldDivider
+import com.honorshots.screenshot.ui.theme.GoldLine
+import com.honorshots.screenshot.ui.theme.MatteBlack
 import com.honorshots.screenshot.ui.theme.Success
+import com.honorshots.screenshot.ui.theme.SurfaceDark
+import com.honorshots.screenshot.ui.theme.TextDimGray
+import com.honorshots.screenshot.ui.theme.TextGold
+import com.honorshots.screenshot.ui.theme.TextGoldSecondary
 import com.honorshots.screenshot.ui.theme.Warning
 import kotlinx.coroutines.launch
 
-// 白色主题颜色
-private val WhiteBackground = Color(0xFFFFFFFF)
-private val LightGray = Color(0xFFF5F5F5)
-private val DarkText = Color(0xFF212121)
-private val GrayText = Color(0xFF757575)
-private val LightBlue = Color(0xFF2196F3)
+// ===== 暗黑金主题常量 =====
+private val KaiTiBold = FontFamily.Serif
 
 // ==================== 主界面 ====================
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     viewModel: MainViewModel = hiltViewModel(),
@@ -104,6 +112,7 @@ fun MainScreen(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreenWithViewModel(
     viewModel: MainViewModel = hiltViewModel(),
@@ -112,44 +121,41 @@ fun MainScreenWithViewModel(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-    
-    // 使用共享的投影权限状态
+    var selectedTab by remember { mutableIntStateOf(1) } // 默认选中"悬浮球"
+
+    // 使用共享投影权限状态
     val hasProjectionPermission by ProjectionPermissionManager.hasProjectionPermission.collectAsState()
-    
-    // 通知父组件 ViewModel 已准备好
-    LaunchedEffect(viewModel) {
-        onViewModelReady(viewModel)
-    }
-    
-    // 监听投影权限变化，更新ViewModel状态
+
+    LaunchedEffect(viewModel) { onViewModelReady(viewModel) }
+
     LaunchedEffect(hasProjectionPermission) {
-        if (hasProjectionPermission) {
-            viewModel.setProjectionPermissionGranted()
-        }
+        if (hasProjectionPermission) viewModel.setProjectionPermissionGranted()
     }
-    
-    // 定期刷新截图数量
+
+    // 定期刷新截图数量与权限
     LaunchedEffect(Unit) {
         while (true) {
             viewModel.updateScreenshotCount()
+            viewModel.checkPermissions()
             kotlinx.coroutines.delay(2000)
         }
     }
 
-    // 权限请求launcher
+    // Toast 消息
+    LaunchedEffect(state.toastMessage) {
+        state.toastMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // ===== 权限请求 Launcher =====
     val storagePermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
-    ) {
-        viewModel.checkPermissions()
-    }
+    ) { viewModel.checkPermissions() }
 
     val overlayPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
-    ) {
-        viewModel.checkPermissions()
-    }
+    ) { viewModel.checkPermissions() }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -158,155 +164,191 @@ fun MainScreenWithViewModel(
         viewModel.checkPermissions()
     }
 
-    // 视频文件夹选择器
     val videoFolderPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         uri?.let {
             context.contentResolver.takePersistableUriPermission(
-                it,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                it, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
-            val path = getPathFromUri(context, it)
-            if (path != null) {
-                viewModel.saveVideoFolderPath(path)
-            } else {
-                viewModel.saveVideoFolderPath(it.toString())
-            }
+            val path = getPathFromUri(it)
+            if (path != null) viewModel.saveVideoFolderPath(path)
+            else viewModel.saveVideoFolderPath(it.toString())
         }
     }
 
-    // 检查通知权限
     fun checkNotificationPermission(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == 
+            context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
                 android.content.pm.PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
+        } else true
     }
-    
     val hasNotificationPermission = remember { checkNotificationPermission() }
 
-    // 定期检查权限
-    LaunchedEffect(Unit) {
-        while (true) {
-            viewModel.checkPermissions()
-            kotlinx.coroutines.delay(1000)
-        }
-    }
-
-    // Toast消息
-    LaunchedEffect(state.toastMessage) {
-        state.toastMessage?.let {
-            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    // 创建侧边菜单内容
-    val drawerContent = @Composable {
-        DrawerContent(
-            state = state,
-            hasProjectionPermission = hasProjectionPermission,
-            hasNotificationPermission = hasNotificationPermission,
-            onCloseDrawer = { scope.launch { drawerState.close() } },
-            onRequestOverlayPermission = {
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:${context.packageName}")
-                )
-                overlayPermissionLauncher.launch(intent)
-            },
-            onRequestStoragePermission = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                    storagePermissionLauncher.launch(intent)
-                } else {
-                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                    intent.data = Uri.parse("package:${context.packageName}")
-                    storagePermissionLauncher.launch(intent)
-                }
-            },
-            onRequestProjectionPermission = onRequestProjectionPermission,
-            onRequestNotificationPermission = {
-                notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-            },
-            onOpenScreenshotFolder = { viewModel.openScreenshotFolder() },
-            onOpenSaveFolderSettings = { viewModel.openSaveFolderSettings() },
-            onSelectVideoFolder = { videoFolderPickerLauncher.launch(null) },
-            onOpenVideoFolder = { viewModel.openVideoFolder() },
-            onPerformAIAnalysis = { viewModel.openAIAnalysisUrl() }
+    // ===== 权限回调 =====
+    val onRequestOverlayPermission: () -> Unit = {
+        val intent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:${context.packageName}")
         )
+        overlayPermissionLauncher.launch(intent)
+    }
+    val onRequestStoragePermission: () -> Unit = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+            storagePermissionLauncher.launch(intent)
+        } else {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            intent.data = Uri.parse("package:${context.packageName}")
+            storagePermissionLauncher.launch(intent)
+        }
+    }
+    val onRequestNotificationPermission: () -> Unit = {
+        notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
     }
 
-    // 使用ModalNavigationDrawer实现侧边菜单
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = drawerContent,
-        gesturesEnabled = true
-    ) {
-        // 主页面 - 白色背景
+    // ===== Scaffold + 三标签导航 =====
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MatteBlack,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "王者截图",
+                        fontFamily = KaiTiBold,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = DarkGoldLight
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MatteBlack,
+                    titleContentColor = DarkGoldLight
+                )
+            )
+        },
+        bottomBar = {
+            // ===== 底部三等分导航栏 =====
+            NavigationBar(
+                containerColor = MatteBlack,
+                tonalElevation = 0.dp
+            ) {
+                // 标签1：权限
+                NavigationBarItem(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Shield,
+                            contentDescription = "权限",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = "权限",
+                            fontFamily = KaiTiBold,
+                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 11.sp
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = DarkGoldLight,
+                        selectedTextColor = DarkGoldLight,
+                        unselectedIconColor = TextDimGray,
+                        unselectedTextColor = TextDimGray,
+                        indicatorColor = DarkGoldDim.copy(alpha = 0.15f)
+                    )
+                )
+                // 标签2：悬浮球
+                NavigationBarItem(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Circle,
+                            contentDescription = "悬浮球",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = "悬浮球",
+                            fontFamily = KaiTiBold,
+                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 11.sp
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = DarkGoldLight,
+                        selectedTextColor = DarkGoldLight,
+                        unselectedIconColor = TextDimGray,
+                        unselectedTextColor = TextDimGray,
+                        indicatorColor = DarkGoldDim.copy(alpha = 0.15f)
+                    )
+                )
+                // 标签3：赛后
+                NavigationBarItem(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Psychology,
+                            contentDescription = "赛后",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = "赛后",
+                            fontFamily = KaiTiBold,
+                            fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 11.sp
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = DarkGoldLight,
+                        selectedTextColor = DarkGoldLight,
+                        unselectedIconColor = TextDimGray,
+                        unselectedTextColor = TextDimGray,
+                        indicatorColor = DarkGoldDim.copy(alpha = 0.15f)
+                    )
+                )
+            }
+        }
+    ) { innerPadding ->
+        // 内容区
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(WhiteBackground)
+                .padding(innerPadding)
+                .background(MatteBlack)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(20.dp)
-            ) {
-                // 顶部栏 - 菜单按钮
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = { scope.launch { drawerState.open() } }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = "菜单",
-                            tint = DarkText,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                    
-                    Text(
-                        text = "王者截图",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = DarkText
-                    )
-                    
-                    // 占位，保持标题居中
-                    Spacer(modifier = Modifier.size(48.dp))
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // 截图统计卡片
-                HomeScreenshotStatsCard(count = state.screenshotCount)
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // 悬浮球开关
-                HomeFloatBallSwitch(
-                    isEnabled = state.isServiceRunning,
-                    allPermissionsGranted = state.allPermissionsGranted,
+            when (selectedTab) {
+                0 -> PermissionTab(
+                    state = state,
+                    hasNotificationPermission = hasNotificationPermission,
+                    onRequestStoragePermission = onRequestStoragePermission,
+                    onRequestNotificationPermission = onRequestNotificationPermission,
+                    onOpenScreenshotFolder = { viewModel.openScreenshotFolder() },
+                    onOpenSaveFolderSettings = { viewModel.openSaveFolderSettings() },
+                    onSelectVideoFolder = { videoFolderPickerLauncher.launch(null) },
+                    onOpenVideoFolder = { viewModel.openVideoFolder() }
+                )
+                1 -> FloatBallTab(
+                    state = state,
                     hasProjectionPermission = hasProjectionPermission,
-                    onToggle = {
-                        val hasAllPermissions = state.hasOverlayPermission && 
-                                state.hasStoragePermission && 
+                    onRequestOverlayPermission = onRequestOverlayPermission,
+                    onRequestProjectionPermission = onRequestProjectionPermission,
+                    onToggleFloatBall = {
+                        val hasAllPermissions = state.hasOverlayPermission &&
+                                state.hasStoragePermission &&
                                 hasProjectionPermission
-                        
                         if (!hasAllPermissions) {
                             Toast.makeText(context, "请先授予所有权限", Toast.LENGTH_SHORT).show()
-                            return@HomeFloatBallSwitch
+                            return@FloatBallTab
                         }
-                        
                         val serviceIntent = Intent(context, FloatBallService::class.java)
                         if (state.isServiceRunning) {
                             context.stopService(serviceIntent)
@@ -316,468 +358,586 @@ fun MainScreenWithViewModel(
                         viewModel.checkPermissions()
                     }
                 )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // 截图文件夹路径卡片
-                HomeFolderPathCard(
-                    icon = Icons.Outlined.PhotoLibrary,
-                    title = "截图文件夹路径",
-                    path = "Pictures/HonorScreenshots",
-                    onClick = { viewModel.openScreenshotFolder() }
+                2 -> PostMatchTab(
+                    onAIAnalysis = { viewModel.openAIAnalysisUrl() }
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // 视频文件夹路径卡片
-                HomeFolderPathCard(
-                    icon = Icons.Outlined.VideoLibrary,
-                    title = "视频文件夹路径",
-                    path = state.videoFolderPath ?: "未设置",
-                    onClick = {
-                        if (state.videoFolderPath != null) {
-                            viewModel.openVideoFolder()
-                        } else {
-                            videoFolderPickerLauncher.launch(null)
-                        }
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // 使用说明
-                HomeUsageInstructions()
             }
         }
     }
 }
 
-// ==================== 侧边菜单内容 ====================
+// ==================== 标签页1：权限 ====================
 @Composable
-fun DrawerContent(
+fun PermissionTab(
     state: PermissionState,
-    hasProjectionPermission: Boolean,
     hasNotificationPermission: Boolean,
-    onCloseDrawer: () -> Unit,
-    onRequestOverlayPermission: () -> Unit,
     onRequestStoragePermission: () -> Unit,
-    onRequestProjectionPermission: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onOpenScreenshotFolder: () -> Unit,
     onOpenSaveFolderSettings: () -> Unit,
     onSelectVideoFolder: () -> Unit,
-    onOpenVideoFolder: () -> Unit,
-    onPerformAIAnalysis: () -> Unit
+    onOpenVideoFolder: () -> Unit
 ) {
     Column(
         modifier = Modifier
-            .fillMaxHeight()
-            .fillMaxWidth(0.85f)
-            .background(WhiteBackground)
-            .padding(vertical = 16.dp)
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        // 菜单头部
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "菜单",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = DarkText
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = onCloseDrawer) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "关闭",
-                    tint = GrayText
-                )
-            }
-        }
+        // 分区标题：权限
+        SectionTitle("权限状态")
 
-        Divider(color = LightGray)
-
-        // ===== 权限一栏 =====
-        DrawerSectionTitle(title = "权限")
-        
-        DrawerPermissionItem(
-            title = "悬浮窗权限",
-            isGranted = state.hasOverlayPermission,
-            onClick = onRequestOverlayPermission
-        )
-        
-        DrawerPermissionItem(
+        // 存储权限
+        DarkGoldPermissionItem(
             title = "存储权限",
             isGranted = state.hasStoragePermission,
             onClick = onRequestStoragePermission
         )
-        
-        DrawerPermissionItem(
-            title = "截屏权限",
-            isGranted = hasProjectionPermission,
-            onClick = onRequestProjectionPermission
-        )
-        
+
+        // 通知权限
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            DrawerPermissionItem(
+            Spacer(modifier = Modifier.height(8.dp))
+            DarkGoldPermissionItem(
                 title = "通知权限",
                 isGranted = hasNotificationPermission,
                 onClick = onRequestNotificationPermission
             )
         }
 
-        Divider(color = LightGray, modifier = Modifier.padding(vertical = 12.dp))
+        // 云纹装饰分割线
+        CloudDivider()
 
-        // ===== 功能一栏 =====
-        DrawerSectionTitle(title = "功能")
-        
-        DrawerFunctionItem(
-            icon = Icons.Default.PhotoLibrary,
+        // 分区标题：文件管理
+        SectionTitle("文件管理")
+
+        // 文件相关功能
+        DarkGoldFunctionItem(
+            icon = Icons.Outlined.PhotoLibrary,
             title = "打开截图文件夹",
-            onClick = {
-                onOpenScreenshotFolder()
-                onCloseDrawer()
-            }
+            onClick = onOpenScreenshotFolder
         )
-
-        DrawerFunctionItem(
-            icon = Icons.Default.Settings,
+        DarkGoldFunctionItem(
+            icon = Icons.Outlined.Settings,
             title = "保存文件夹设置",
-            onClick = {
-                onOpenSaveFolderSettings()
-                onCloseDrawer()
-            }
+            onClick = onOpenSaveFolderSettings
         )
-
-        DrawerFunctionItem(
-            icon = Icons.Default.VideoLibrary,
+        DarkGoldFunctionItem(
+            icon = Icons.Outlined.VideoLibrary,
             title = "保存视频文件路径",
-            onClick = {
-                onSelectVideoFolder()
-                onCloseDrawer()
-            }
+            onClick = onSelectVideoFolder
         )
-
-        DrawerFunctionItem(
-            icon = Icons.Default.Folder,
+        DarkGoldFunctionItem(
+            icon = Icons.Outlined.Folder,
             title = "打开视频文件夹",
+            onClick = onOpenVideoFolder
+        )
+
+        // 快捷入口
+        CloudDivider()
+        SectionTitle("快捷入口")
+
+        DarkGoldFunctionItem(
+            icon = Icons.Outlined.PhotoLibrary,
+            title = "截图文件夹快捷入口",
+            subtitle = "Pictures/HonorScreenshots",
+            onClick = onOpenScreenshotFolder
+        )
+        DarkGoldFunctionItem(
+            icon = Icons.Outlined.VideoLibrary,
+            title = "视频文件夹快捷入口",
+            subtitle = state.videoFolderPath ?: "未设置",
             onClick = {
-                onOpenVideoFolder()
-                onCloseDrawer()
+                if (state.videoFolderPath != null) onOpenVideoFolder()
+                else onSelectVideoFolder()
             }
         )
 
-        DrawerFunctionItem(
-            icon = Icons.Default.Psychology,
-            title = "进行AI分析",
-            onClick = {
-                onPerformAIAnalysis()
-                onCloseDrawer()
-            }
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+// ==================== 标签页2：悬浮球 ====================
+@Composable
+fun FloatBallTab(
+    state: PermissionState,
+    hasProjectionPermission: Boolean,
+    onRequestOverlayPermission: () -> Unit,
+    onRequestProjectionPermission: () -> Unit,
+    onToggleFloatBall: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // 顶部分区：权限状态
+        SectionTitle("权限状态")
+
+        // 悬浮窗权限
+        DarkGoldPermissionItem(
+            title = "悬浮窗权限",
+            isGranted = state.hasOverlayPermission,
+            onClick = onRequestOverlayPermission
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // 截屏权限
+        DarkGoldPermissionItem(
+            title = "截屏权限",
+            isGranted = hasProjectionPermission,
+            onClick = onRequestProjectionPermission
+        )
+
+        // 云纹装饰分割线
+        CloudDivider()
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 核心控件：悬浮球总开关（居中）
+        DarkGoldFloatBallSwitch(
+            isEnabled = state.isServiceRunning,
+            canEnable = state.hasOverlayPermission && state.hasStoragePermission && hasProjectionPermission,
+            onToggle = onToggleFloatBall
         )
 
         Spacer(modifier = Modifier.weight(1f))
+    }
+}
 
-        // 底部信息
-        Text(
-            text = "王者截图 v1.0",
-            fontSize = 12.sp,
-            color = GrayText,
+// ==================== 标签页3：赛后 ====================
+@Composable
+fun PostMatchTab(
+    onAIAnalysis: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        DarkGoldAIAnalysisCard(onClick = onAIAnalysis)
+    }
+}
+
+// ==================== 可复用组件 ====================
+
+// 分区标题
+@Composable
+fun SectionTitle(title: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 左侧暗金装饰线
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                .width(3.dp)
+                .height(18.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(DarkGoldLight, DarkGoldDim, Color.Transparent)
+                    )
+                )
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = title,
+            fontFamily = KaiTiBold,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            color = DarkGoldLight
         )
     }
 }
 
+// 权限条目组件（毛玻璃卡片）
 @Composable
-fun DrawerSectionTitle(title: String) {
-    Text(
-        text = title,
-        fontSize = 14.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = LightBlue,
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-    )
-}
-
-@Composable
-fun DrawerPermissionItem(
+fun DarkGoldPermissionItem(
     title: String,
     isGranted: Boolean,
     onClick: () -> Unit
 ) {
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+            .background(CardBackground)
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = if (isGranted) Icons.Default.CheckCircle else Icons.Default.Warning,
-            contentDescription = null,
-            tint = if (isGranted) Success else Warning,
-            modifier = Modifier.size(22.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = title,
-            fontSize = 16.sp,
-            color = DarkText,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = if (isGranted) "已授权" else "未授权",
-            fontSize = 12.sp,
-            color = if (isGranted) Success else Warning
-        )
-    }
-}
-
-@Composable
-fun DrawerFunctionItem(
-    icon: ImageVector,
-    title: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = Primary,
-            modifier = Modifier.size(22.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = title,
-            fontSize = 16.sp,
-            color = DarkText
-        )
-    }
-}
-
-// ==================== 主页组件 ====================
-@Composable
-fun HomeScreenshotStatsCard(count: Int) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = LightGray),
-        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            // 状态图标
             Icon(
-                imageVector = Icons.Default.PhotoLibrary,
+                imageVector = if (isGranted) Icons.Outlined.CheckCircle else Icons.Outlined.Warning,
                 contentDescription = null,
-                tint = Primary,
-                modifier = Modifier.size(56.dp)
+                tint = if (isGranted) Success else Warning,
+                modifier = Modifier.size(22.dp)
             )
-            Spacer(modifier = Modifier.width(20.dp))
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "$count",
-                    fontSize = 42.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = DarkText
-                )
-                Text(
-                    text = "已截取图片数量",
-                    fontSize = 14.sp,
-                    color = GrayText
-                )
-            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Text(
+                text = title,
+                fontFamily = KaiTiBold,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = TextGold,
+                modifier = Modifier.weight(1f)
+            )
+            // 状态标签
+            Text(
+                text = if (isGranted) "✓ 已授权" else "⚠ 未授权",
+                fontFamily = KaiTiBold,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                color = if (isGranted) Success else Warning
+            )
         }
     }
 }
 
+// 功能条目组件（毛玻璃卡片）
 @Composable
-fun HomeFloatBallSwitch(
-    isEnabled: Boolean,
-    allPermissionsGranted: Boolean,
-    hasProjectionPermission: Boolean,
-    onToggle: () -> Unit
+fun DarkGoldFunctionItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    onClick: () -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val scale by animateFloatAsState(
-        targetValue = if (isEnabled) 1.02f else 1f,
-        label = "scale"
-    )
-    val canEnable = allPermissionsGranted && hasProjectionPermission
-
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+            .background(CardBackground)
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = DarkGoldLight,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontFamily = KaiTiBold,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = TextGold
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        fontFamily = KaiTiBold,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = TextGoldSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            // 右侧箭头指示
+            Text(
+                text = "›",
+                fontFamily = KaiTiBold,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = TextDimGray
+            )
+        }
+    }
+}
+
+// 云纹分割线
+@Composable
+fun CloudDivider() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        // 左侧线条
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(Color.Transparent, GoldDivider, GoldDivider)
+                    )
+                )
+        )
+        // 中间云纹装饰点
+        Spacer(modifier = Modifier.width(8.dp))
+        Box(
+            modifier = Modifier
+                .size(4.dp)
+                .clip(CircleShape)
+                .background(DarkGoldLight.copy(alpha = 0.5f))
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Box(
+            modifier = Modifier
+                .size(2.dp)
+                .clip(CircleShape)
+                .background(DarkGoldLight.copy(alpha = 0.3f))
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        // 右侧线条
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(GoldDivider, GoldDivider, Color.Transparent)
+                    )
+                )
+        )
+    }
+}
+
+// 悬浮球总开关（核心控件，居中）
+@Composable
+fun DarkGoldFloatBallSwitch(
+    isEnabled: Boolean,
+    canEnable: Boolean,
+    onToggle: () -> Unit
+) {
+    val context = LocalContext.current
+    val scale by animateFloatAsState(
+        targetValue = if (isEnabled) 1.03f else 1f,
+        label = "floatBallScale"
+    )
+
+    Box(
+        modifier = Modifier
             .scale(scale)
+            .clip(RoundedCornerShape(20.dp))
+            .border(
+                width = 1.5.dp,
+                brush = Brush.linearGradient(
+                    colors = if (isEnabled) listOf(DarkGoldLight, DarkGoldDim)
+                    else listOf(GoldDivider, CardBorder)
+                ),
+                shape = RoundedCornerShape(20.dp)
+            )
+            .background(if (isEnabled) DarkGoldDim.copy(alpha = 0.25f) else CardBackground)
             .clickable {
                 if (canEnable || isEnabled) {
                     onToggle()
                 } else {
                     Toast.makeText(context, "请先授予所有权限", Toast.LENGTH_SHORT).show()
                 }
-            },
-        colors = CardDefaults.cardColors(
-            containerColor = if (isEnabled) Primary else LightGray
-        ),
-        shape = RoundedCornerShape(16.dp)
+            }
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column {
-                Text(
-                    text = if (isEnabled) "悬浮球已开启" else "悬浮球已关闭",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isEnabled) Color.White else DarkText
-                )
-                Text(
-                    text = when {
-                        isEnabled -> "点击悬浮球截屏"
-                        !canEnable -> "请先授予所有权限"
-                        else -> "点击开启悬浮球"
-                    },
-                    fontSize = 12.sp,
-                    color = if (isEnabled) Color.White.copy(alpha = 0.8f) else GrayText
+            // 悬浮球图标（大号圆形）
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isEnabled)
+                            Brush.radialGradient(
+                                colors = listOf(DarkGoldLight, DarkGold, DarkGoldDim)
+                            )
+                        else
+                            Brush.radialGradient(
+                                colors = listOf(TextDimGray, Color(0xFF3A3A3A), Color(0xFF1A1A1A))
+                            )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Circle,
+                    contentDescription = null,
+                    tint = if (isEnabled) MatteBlack else TextDimGray,
+                    modifier = Modifier.size(28.dp)
                 )
             }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Text(
+                text = if (isEnabled) "悬浮球已开启" else "悬浮球已关闭",
+                fontFamily = KaiTiBold,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = if (isEnabled) DarkGoldLight else TextGoldSecondary
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = when {
+                    isEnabled -> "点击悬浮球截屏 · 拖拽移动位置"
+                    !canEnable -> "请先在「权限」标签页授予所有权限"
+                    else -> "点击下方开关启用悬浮球"
+                },
+                fontFamily = KaiTiBold,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = if (isEnabled) TextGoldSecondary else TextDimGray,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 开关
             Switch(
                 checked = isEnabled,
-                onCheckedChange = { 
-                    if (canEnable || isEnabled) {
-                        onToggle()
-                    }
+                onCheckedChange = {
+                    if (canEnable || isEnabled) onToggle()
                 },
                 enabled = canEnable || isEnabled,
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Primary,
-                    checkedTrackColor = Color.White.copy(alpha = 0.5f),
-                    uncheckedThumbColor = GrayText,
-                    uncheckedTrackColor = Color.LightGray
+                    checkedThumbColor = DarkGoldLight,
+                    checkedTrackColor = DarkGoldDim.copy(alpha = 0.4f),
+                    uncheckedThumbColor = TextDimGray,
+                    uncheckedTrackColor = Color(0xFF2A2A2A),
+                    disabledCheckedThumbColor = DarkGoldDim,
+                    disabledCheckedTrackColor = GoldDivider,
+                    disabledUncheckedThumbColor = TextDimGray,
+                    disabledUncheckedTrackColor = Color(0xFF1A1A1A)
                 )
             )
         }
     }
 }
 
+// AI分析卡片（赛后标签页）
 @Composable
-fun HomeFolderPathCard(
-    icon: ImageVector,
-    title: String,
-    path: String,
-    onClick: () -> Unit
-) {
-    Card(
+fun DarkGoldAIAnalysisCard(onClick: () -> Unit) {
+    val scale by animateFloatAsState(
+        targetValue = 1f,
+        label = "aiCardScale"
+    )
+
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = LightGray),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = Primary,
-                modifier = Modifier.size(28.dp)
+            .padding(24.dp)
+            .scale(scale)
+            .clip(RoundedCornerShape(24.dp))
+            .border(
+                width = 1.5.dp,
+                brush = Brush.linearGradient(
+                    colors = listOf(DarkGoldLight, DarkGoldDim, CardBorder)
+                ),
+                shape = RoundedCornerShape(24.dp)
             )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    fontSize = 14.sp,
-                    color = GrayText
-                )
-                Text(
-                    text = path,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = DarkText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Icon(
-                imageVector = Icons.Default.Folder,
-                contentDescription = null,
-                tint = GrayText,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun HomeUsageInstructions() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = LightGray),
-        shape = RoundedCornerShape(12.dp)
+            .background(CardBackground)
+            .clickable(onClick = onClick)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(36.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "使用说明",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = DarkText
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            val instructions = listOf(
-                "1. 请授予所有必需权限（通过侧边菜单）",
-                "2. 开启悬浮球后，拖动到屏幕边缘可隐藏",
-                "3. 点击悬浮球即可截取当前画面",
-                "4. 截图自动保存到指定文件夹",
-                "5. 在游戏中建议将悬浮球隐藏到边缘"
-            )
-            instructions.forEach { instruction ->
-                Text(
-                    text = instruction,
-                    fontSize = 13.sp,
-                    color = GrayText,
-                    modifier = Modifier.padding(vertical = 2.dp)
+            // AI图标
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(DarkGoldDim.copy(alpha = 0.3f))
+                    .border(1.dp, DarkGoldLight.copy(alpha = 0.3f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Psychology,
+                    contentDescription = null,
+                    tint = DarkGoldLight,
+                    modifier = Modifier.size(36.dp)
                 )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "AI 赛后分析",
+                fontFamily = KaiTiBold,
+                fontWeight = FontWeight.Bold,
+                fontSize = 24.sp,
+                color = DarkGoldLight
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "点击此处进入AI分析页面\n获取王者荣耀对局深度复盘",
+                fontFamily = KaiTiBold,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = TextGoldSecondary,
+                textAlign = TextAlign.Center,
+                lineHeight = 22.sp
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 进入按钮
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(DarkGoldLight.copy(alpha = 0.15f))
+                    .border(1.dp, DarkGoldLight.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 32.dp, vertical = 12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "开始分析",
+                        fontFamily = KaiTiBold,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = DarkGoldLight
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "→",
+                        fontFamily = KaiTiBold,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = DarkGoldLight
+                    )
+                }
             }
         }
     }
 }
 
-// Helper function
-private fun getPathFromUri(context: android.content.Context, uri: Uri): String? {
+// ==================== 帮助函数 ====================
+private fun getPathFromUri(uri: Uri): String? {
     val docId = uri.lastPathSegment ?: return null
     val split = docId.split(":")
     val type = split.getOrNull(0)
     val relativePath = split.getOrNull(1) ?: ""
     return when {
-        "primary".equals(type, ignoreCase = true) -> {
+        "primary".equals(type, ignoreCase = true) ->
             "${Environment.getExternalStorageDirectory()}/$relativePath"
-        }
         else -> "/storage/$type/$relativePath"
     }
 }

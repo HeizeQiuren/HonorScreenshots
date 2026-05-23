@@ -9,43 +9,56 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Primary,
-    onPrimary = TextPrimary,
-    primaryContainer = PrimaryVariant,
-    onPrimaryContainer = TextPrimary,
-    secondary = Secondary,
-    onSecondary = TextPrimary,
-    secondaryContainer = Secondary,
-    onSecondaryContainer = TextPrimary,
-    tertiary = Accent,
-    onTertiary = Background,
-    tertiaryContainer = AccentVariant,
-    onTertiaryContainer = Background,
-    background = Background,
-    onBackground = TextPrimary,
-    surface = Surface,
-    onSurface = TextPrimary,
+private val DarkGoldColorScheme = darkColorScheme(
+    primary = DarkGold,
+    onPrimary = MatteBlack,
+    primaryContainer = DarkGoldDim,
+    onPrimaryContainer = DarkGold,
+    secondary = DarkGoldLight,
+    onSecondary = MatteBlack,
+    secondaryContainer = DarkGoldDim,
+    onSecondaryContainer = DarkGold,
+    tertiary = DarkGoldLight,
+    onTertiary = MatteBlack,
+    tertiaryContainer = DarkGoldDim,
+    onTertiaryContainer = DarkGold,
+    background = MatteBlack,
+    onBackground = TextGold,
+    surface = SurfaceDark,
+    onSurface = TextGold,
     surfaceVariant = SurfaceVariant,
-    onSurfaceVariant = TextSecondary,
+    onSurfaceVariant = TextGoldSecondary,
     error = Error,
-    onError = TextPrimary
+    onError = MatteBlack,
+    outline = GoldDivider,
+    outlineVariant = GoldLine
 )
 
 @Composable
 fun HonorScreenshotsTheme(
     content: @Composable () -> Unit
 ) {
-    val colorScheme = DarkColorScheme
+    val colorScheme = DarkGoldColorScheme
     val view = LocalView.current
 
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.background.toArgb()
-            window.navigationBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+            
+            // 设置状态栏和导航栏为纯黑底色
+            window.statusBarColor = MatteBlack.toArgb()
+            window.navigationBarColor = MatteBlack.toArgb()
+            
+            // 沉浸式：内容延伸到系统栏后面
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            
+            val controller = WindowInsetsControllerCompat(window, view)
+            // 状态栏文字设为暗金色（因为背景是纯黑）
+            controller.isAppearanceLightStatusBars = false
+            controller.isAppearanceLightNavigationBars = false
         }
     }
 
